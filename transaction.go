@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+
+	"github.com/btcsuite/btcutil/base58"
 )
 
 type Transaction struct {
@@ -29,20 +31,21 @@ func (tx *Transaction) SetID() {
 }
 
 type TxOutput struct {
-	Value        int
-	ScriptPubKey string
+	Value      int
+	PubKeyHash []byte
 }
 type TxInput struct {
 	Txid      []byte
 	Vout      int
-	ScriptSig string
+	PubKey    []byte
+	Signature []byte
 }
 
 func NewCoinBaseTX(to, data string) *Transaction {
 	if data == "" {
 		data = fmt.Sprintf("Reward to %s", to)
 	}
-	txin := TxInput{[]byte{}, -1, data}
+	txin := TxInput{}
 	txout := TxOutput{subsidy, to}
 	tx := Transaction{nil, []TxInput{txin}, []TxOutput{txout}}
 	tx.SetID()
@@ -50,12 +53,20 @@ func NewCoinBaseTX(to, data string) *Transaction {
 
 }
 
-func (in *TxInput) CanUnlockOutputWith(unlockingdata string) bool {
-	return in.ScriptSig == unlockingdata
+func (in *TxInput) UsesKey(pubKeyHash []byte) bool {
+	inHash := HashPubKey(in.PubKey)
+	return bytes.Compare(inHash, pubKeyHash) == 0
 }
 
-func (out *TxOutput) CanBeUnlockedWith(unlockingdata string) bool {
-	return out.ScriptPubKey == unlockingdata
+func (out *TxOutput) CanBeUnlockedWith(pubKeyHash []byte) bool {
+	return bytes.Compare(out.PubKeyHash, pubKeyHash) == 0
+}
+
+func (out *TxOutput) Lock(address []byte) {
+	// the address is base58 encoded .
+	pubKeyHash := base58.Decode(string(address))
+	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-4]
+	out.PubKeyHash = pubKeyHash
 }
 
 func (tx *Transaction) Coinbase() bool {
