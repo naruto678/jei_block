@@ -16,6 +16,8 @@ const (
 	subsidy             = 100
 	genesisCoinbaseData = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
 	scriptPubKey        = "ArnabWalletAddress"
+	version             = 1.0
+	checkSumLen         = 10
 )
 
 type CLI struct {
@@ -73,6 +75,13 @@ func (cli *CLI) sendBalance(to, from string, amount int) {
 	fmt.Println("Success!!")
 }
 
+func (cli *CLI) CreateWallet() {
+	wallet := NewWallet()
+	fmt.Println(string(wallet.GetAddress()))
+	fmt.Println("Success!!")
+
+}
+
 func (cli *CLI) Run() {
 	cli.ValidateArgs()
 	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ExitOnError)
@@ -85,6 +94,8 @@ func (cli *CLI) Run() {
 	sendCmdFrom := sendCmd.String("from", "", "address of the sender")
 	sendCmdAmount := sendCmd.Int("amount", 0, "amount of money to send")
 
+	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
+
 	switch os.Args[1] {
 	case "createblockchain":
 		createBlockchainCmd.Parse(os.Args[2:])
@@ -95,6 +106,8 @@ func (cli *CLI) Run() {
 
 	case "send":
 		sendCmd.Parse(os.Args[2:])
+	case "createwallet":
+		createWalletCmd.Parse(os.Args[2:])
 
 	default:
 		fmt.Println("Unknown command . Exiting")
@@ -124,6 +137,9 @@ func (cli *CLI) Run() {
 			os.Exit(1)
 		}
 		cli.sendBalance(*sendCmdTo, *sendCmdFrom, *sendCmdAmount)
+	}
+	if createWalletCmd.Parsed() {
+		cli.CreateWallet()
 	}
 
 }
