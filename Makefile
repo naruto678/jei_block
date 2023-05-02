@@ -1,7 +1,10 @@
 build: 
 	go build -o blockchain_go . 
 
-commit: 
+pull: 
+	git pull 
+
+commit: pull
 	git add . && git commit -m "New changes"
 
 push: commit
