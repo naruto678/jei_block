@@ -9,3 +9,7 @@ commit: pull
 
 push: commit
 	git push origin
+
+test: 
+	go test -v ./.
+

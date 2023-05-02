@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestCreation(t *testing.T) {
 	// This test tests the creation of a blockchain with a specific address
@@ -10,6 +13,11 @@ func TestCreation(t *testing.T) {
 	chain := CreateBlockchain(string(address))
 	if chain == nil {
 		t.Fatal("Chain was not created ")
+	}
+
+	err := os.Remove("./" + dbFile)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 }
