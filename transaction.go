@@ -41,12 +41,18 @@ type TxInput struct {
 	Signature []byte
 }
 
-func NewCoinBaseTX(to, data string) *Transaction {
+func NewCoinBaseTX(address, data string) *Transaction {
 	if data == "" {
-		data = fmt.Sprintf("Reward to %s", to)
+		data = fmt.Sprintf("Reward to %s", address)
 	}
-	txin := TxInput{}
-	txout := TxOutput{subsidy, to}
+	pubKeyHash := base58.Decode(address)
+	txin := TxInput{
+		Txid:      []byte{},
+		Vout:      -1,
+		PubKey:    pubKeyHash,
+		Signature: []byte{},
+	}
+	txout := TxOutput{subsidy, pubKeyHash}
 	tx := Transaction{nil, []TxInput{txin}, []TxOutput{txout}}
 	tx.SetID()
 	return &tx
@@ -58,7 +64,7 @@ func (in *TxInput) UsesKey(pubKeyHash []byte) bool {
 	return bytes.Compare(inHash, pubKeyHash) == 0
 }
 
-func (out *TxOutput) CanBeUnlockedWith(pubKeyHash []byte) bool {
+func (out *TxOutput) IsLockedWithKey(pubKeyHash []byte) bool {
 	return bytes.Compare(out.PubKeyHash, pubKeyHash) == 0
 }
 
@@ -77,7 +83,8 @@ func (tx *Transaction) Coinbase() bool {
 func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
-
+	inPubKeyHash := base58.Decode(from)
+	outPubKeyHash := base58.Decode(to)
 	acc, validOutputs := bc.FindSpendableOutputs(from, amount)
 	if acc < amount {
 		log.Panic("ERROR: Not enough funds")
@@ -88,13 +95,17 @@ func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transactio
 			log.Panic(err)
 		}
 		for _, out := range outs {
-			input := TxInput{txID, out, from}
+			input := TxInput{
+				Txid:   txID,
+				Vout:   out,
+				PubKey: inPubKeyHash,
+			} //TxInput{txID, out, from}
 			inputs = append(inputs, input)
 		}
 	}
-	outputs = append(outputs, TxOutput{amount, to})
+	outputs = append(outputs, TxOutput{amount, outPubKeyHash})
 	if acc > amount {
-		outputs = append(outputs, TxOutput{acc - amount, from})
+		outputs = append(outputs, TxOutput{acc - amount, inPubKeyHash})
 	}
 	tx := Transaction{nil, inputs, outputs}
 	tx.SetID()

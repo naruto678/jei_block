@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/btcsuite/btcutil/base58"
 )
 
 type Blockchain struct {
@@ -229,6 +230,7 @@ func CreateBlockchain(address string) *Blockchain {
 
 func (bc *Blockchain) FindUnspentTransactions(address string) []Transaction {
 	var unspentTxs []Transaction
+	pubKeyHash := base58.Decode(address)
 	spentTXOs := make(map[string][]int)
 	bci := bc.Iterator()
 	for {
@@ -245,14 +247,14 @@ func (bc *Blockchain) FindUnspentTransactions(address string) []Transaction {
 						}
 					}
 				}
-				if out.CanBeUnlockedWith(address) {
+				if out.IsLockedWithKey(pubKeyHash) {
 					unspentTxs = append(unspentTxs, *tx)
 				}
 			}
 
 			if !tx.Coinbase() {
 				for _, in := range tx.Vin {
-					if in.CanUnlockOutputWith(address) {
+					if in.UsesKey(pubKeyHash) {
 						inTxId := hex.EncodeToString(in.Txid)
 						spentTXOs[inTxId] = append(spentTXOs[inTxId], in.Vout)
 					}
@@ -271,10 +273,11 @@ func (bc *Blockchain) FindUnspentTransactions(address string) []Transaction {
 
 func (bc *Blockchain) FindUTXO(address string) []TxOutput {
 	var UTXOs []TxOutput
+	pubKeyHash := base58.Decode(address)
 	unspentTransactions := bc.FindUnspentTransactions(address)
 	for _, tx := range unspentTransactions {
 		for _, out := range tx.Vout {
-			if out.CanBeUnlockedWith(address) {
+			if out.IsLockedWithKey(pubKeyHash) {
 				UTXOs = append(UTXOs, out)
 			}
 		}
@@ -301,12 +304,13 @@ func NewGenesisBlock(transaction *Transaction) *Block {
 func (bc *Blockchain) FindSpendableOutputs(address string, amount int) (int, map[string][]int) {
 	unspentOutputs := make(map[string][]int)
 	unspentTxs := bc.FindUnspentTransactions(address)
+	pubKeyHash := base58.Decode(address)
 	accumulated := 0
 Work:
 	for _, tx := range unspentTxs {
 		txId := hex.EncodeToString(tx.ID)
 		for outIdx, out := range tx.Vout {
-			if out.CanBeUnlockedWith(address) && accumulated < amount {
+			if out.IsLockedWithKey(pubKeyHash) && accumulated < amount {
 				accumulated += out.Value
 				unspentOutputs[txId] = append(unspentOutputs[txId], outIdx)
 			}
